@@ -7,6 +7,8 @@ __copyright__ = "Copyright 2018, Arctic University of Norway"
 __email__ = "enrico.tedeschi@uit.no"
 
 import socket
+from Crypto.Cipher import AES
+import pickle
 
 HOST = socket.gethostbyname('localhost')
 PORT = 8300
@@ -30,3 +32,37 @@ class Colors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
+
+def aes_encode(key, msg):
+    """
+    given a key, it ciphers a message
+    :param key:
+    :param msg: message to cipher
+    :return:
+    """
+    cipher = AES.new(key, AES.MODE_EAX)
+    nonce = cipher.nonce
+    ciphertext, tag = cipher.encrypt_and_digest(pickle.dumps(msg))
+    return nonce, ciphertext, tag
+
+
+def aes_decode(nonce, ciphertext, tag, key):
+    """
+    it decodes a ciphertext encoded with AES
+    :param nonce:
+    :param ciphertext:
+    :param tag:
+    :param key: without the key, the incoming triple is useless
+    :return:
+    """
+    cipher = AES.new(key, AES.MODE_EAX, nonce=nonce)
+    plaintext = cipher.decrypt(ciphertext)
+    try:
+        cipher.verify(tag)
+        print("The message is authentic")
+    except ValueError:
+        print("Key incorrect or message corrupted!")
+        plaintext = ""
+    finally:
+        return pickle.loads(plaintext)

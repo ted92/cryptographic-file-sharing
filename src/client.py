@@ -11,6 +11,10 @@ import rsa
 import getopt
 import re
 import pickle
+import time
+from utils import OK
+
+AES_KEY = b'TheForceIsStrong'  # 16bit AES key
 
 
 class Client:
@@ -28,18 +32,44 @@ class Client:
         it sets up the connection with the server by exchanging public keys
         :return:
         """
-        print("connection for setup with " + Colors.OKGREEN + "%s:%s"
+        print("connection for setup with " + Colors.WARNING + "%s:%s"
               % self.server_address + Colors.ENDC, file=sys.stderr)
         # msg = self.clientsocket.recv(1024)
         # print(msg.decode('ascii'))
         to_send = form_request("GET", "setup", self.public)
-        print("sending %s" % to_send)
+        print("sending " + Colors.OKGREEN + "public key " + Colors.ENDC + "to server")
         self.clientsocket.sendall(pickle.dumps(to_send))
         data = self.clientsocket.recv(MAX_SIZE)  # receive server public key
-        code, self.serverPublic = receive(pickle.loads(data))  # todo: write the server part and test it
-        print("SERVER PUBLIC:)")
-        print(self.serverPublic)
-        self.clientsocket.close()  # todo: move this at the end
+        code, self.serverPublic = receive(pickle.loads(data))
+        print("got " + Colors.OKGREEN + "server public key" + Colors.ENDC)
+
+    def send_symmetric(self):
+        """
+        send symmetric key only if server public key is already saved
+        :return:
+        """
+        aes_ack = False  # acknowledgement for the symmetric aes key
+        # the server public key must be saved already, otherwise keep trying to perform the setup
+        while self.serverPublic == "":
+            self.connection_setup()
+        while not aes_ack:
+            # encrypt the aes key with the server's public key
+            crypto = rsa.encrypt(AES_KEY, self.serverPublic)
+            to_send = form_request("GET", "aes", crypto)
+            print("sending " + Colors.OKGREEN + "aes key " + Colors.ENDC + "to server")
+            self.clientsocket.sendall(pickle.dumps(to_send))
+            data = self.clientsocket.recv(MAX_SIZE)
+            code, _ = receive(pickle.loads(data))
+            if code == OK:
+                print("AES key received.")
+                aes_ack = True
+
+    def close_connection(self):
+        """
+        close the open connection
+        :return:
+        """
+        self.clientsocket.close()
 
     def setup(self):
         """
@@ -103,6 +133,8 @@ def main(argv):
         sys.exit(2)
     c = Client()
     c.connection_setup()
+    time.sleep(2)
+    c.send_symmetric()
 
 
 if __name__ == "__main__":

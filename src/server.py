@@ -25,8 +25,6 @@ class Server:
         :return:
         """
         self.public, self.private = rsa.newkeys(1024)
-        print("SERVER PUBLIC:")
-        print(self.public)
 
     def run(self):
         """
@@ -39,20 +37,26 @@ class Server:
         print("... waiting for a connection", file=sys.stderr)
         # queue up to 5 requests
         self.serversocket.listen(5)
+        self.clientsocket, addr = self.serversocket.accept()
         try:
             while True:
                 # establish a connection
-                self.clientsocket, addr = self.serversocket.accept()
-                print("Got a connection from " + Colors.OKGREEN + "%s" % str(addr) + Colors.ENDC)
+                print("Got a connection from " + Colors.WARNING + "%s" % str(addr) + Colors.ENDC)
                 data = self.clientsocket.recv(MAX_SIZE)
                 method, destination, message = solve_message(pickle.loads(data))
                 if method == "GET" and destination == "/setup":
                     # 1. receive client's public key
                     # 2. send back server's public key
                     self.public_client = message
-                    print("CLIENT PUBLIC:")
-                    print(self.public_client)
+                    print("got " + Colors.OKGREEN + "client public key" + Colors.ENDC)
                     msg = self.public
+                    code = OK
+                elif method == "GET" and destination == "/aes":
+                    # 1. receive the AES key encrypted with server's public key
+                    # 2. decrypt it with server's private
+                    self.aes = rsa.decrypt(message, self.private)
+                    print(self.aes)
+                    msg = ""
                     code = OK
                 to_send = response_format(msg, code)
                 self.clientsocket.sendall(pickle.dumps(to_send))

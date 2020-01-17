@@ -2,3 +2,5 @@
 src/__pycache__/
 
 src/.idea/
+
+.DS_Store
