@@ -61,7 +61,7 @@ class Client:
             data = self.clientsocket.recv(MAX_SIZE)
             code, _ = receive(pickle.loads(data))
             if code == OK:
-                print("AES key received.")
+                print("AES key received from the server.")
                 aes_ack = True
 
     def close_connection(self):

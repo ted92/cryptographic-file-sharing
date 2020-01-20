@@ -7,6 +7,7 @@ import rsa
 import pickle
 from utils import Colors, PORT, MAX_SIZE, OK, NO_CONTENT, NOTFOUND, HOST
 import datetime
+import time
 
 
 class Server:
@@ -41,25 +42,29 @@ class Server:
         try:
             while True:
                 # establish a connection
-                print("Got a connection from " + Colors.WARNING + "%s" % str(addr) + Colors.ENDC)
                 data = self.clientsocket.recv(MAX_SIZE)
-                method, destination, message = solve_message(pickle.loads(data))
-                if method == "GET" and destination == "/setup":
-                    # 1. receive client's public key
-                    # 2. send back server's public key
-                    self.public_client = message
-                    print("got " + Colors.OKGREEN + "client public key" + Colors.ENDC)
-                    msg = self.public
-                    code = OK
-                elif method == "GET" and destination == "/aes":
-                    # 1. receive the AES key encrypted with server's public key
-                    # 2. decrypt it with server's private
-                    self.aes = rsa.decrypt(message, self.private)
-                    print(self.aes)
-                    msg = ""
-                    code = OK
-                to_send = response_format(msg, code)
-                self.clientsocket.sendall(pickle.dumps(to_send))
+                if not data:
+                    time.sleep(2)
+                    pass
+                else:
+                    print("Got a connection from " + Colors.WARNING + "%s" % str(addr) + Colors.ENDC)
+                    method, destination, message = solve_message(pickle.loads(data))
+                    if method == "GET" and destination == "/setup":
+                        # 1. receive client's public key
+                        # 2. send back server's public key
+                        self.public_client = message
+                        print("got " + Colors.OKGREEN + "client public key" + Colors.ENDC)
+                        msg = self.public
+                        code = OK
+                    elif method == "GET" and destination == "/aes":
+                        # 1. receive the AES key encrypted with server's public key
+                        # 2. decrypt it with server's private
+                        self.aes = rsa.decrypt(message, self.private)
+                        print(self.aes)
+                        msg = ""
+                        code = OK
+                    to_send = response_format(msg, code)
+                    self.clientsocket.sendall(pickle.dumps(to_send))
         finally:
             self.clientsocket.close()
 
