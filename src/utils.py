@@ -34,6 +34,17 @@ class Colors:
     UNDERLINE = '\033[4m'
 
 
+class Verifier:
+    """
+    its purpose is to verify the AES key
+    """
+    def __init__(self, nonce, ciphertext, tag, key=''):
+        self.nonce = nonce
+        self.ciphertext = ciphertext
+        self.tag = tag
+        self.key = key
+
+
 def aes_encode(key, msg):
     """
     given a key, it ciphers a message

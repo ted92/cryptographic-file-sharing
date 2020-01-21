@@ -5,7 +5,7 @@ import socket
 import sys
 import rsa
 import pickle
-from utils import Colors, PORT, MAX_SIZE, OK, NO_CONTENT, NOTFOUND, HOST
+from utils import Colors, PORT, MAX_SIZE, OK, NO_CONTENT, NOTFOUND, HOST, Verifier, aes_encode, aes_decode
 import datetime
 import time
 
@@ -47,6 +47,8 @@ class Server:
                     time.sleep(2)
                     pass
                 else:
+                    msg = ""
+                    code = ""
                     print("Got a connection from " + Colors.WARNING + "%s" % str(addr) + Colors.ENDC)
                     method, destination, message = solve_message(pickle.loads(data))
                     if method == "GET" and destination == "/setup":
@@ -60,11 +62,19 @@ class Server:
                         # 1. receive the AES key encrypted with server's public key
                         # 2. decrypt it with server's private
                         self.aes = rsa.decrypt(message, self.private)
-                        print(self.aes)
+                        print("got " + Colors.OKGREEN + "AES symmetric key" + Colors.ENDC)
                         msg = ""
                         code = OK
-                    to_send = response_format(msg, code)
-                    self.clientsocket.sendall(pickle.dumps(to_send))
+                    elif method == "GET" and destination == "/msg":
+                        # 1. Receive the message
+                        # 2. Decrypt it and read the message
+                        v = pickle.loads(message)
+                        plaintext = aes_decode(v.nonce, v.ciphertext, v.tag, self.aes)
+                        print(plaintext)
+                        code = OK
+                    if code == OK:
+                        to_send = response_format(msg, code)
+                        self.clientsocket.sendall(pickle.dumps(to_send))
         finally:
             self.clientsocket.close()
 
@@ -139,5 +149,10 @@ def solve_message(msg):
 
 
 if __name__ == "__main__":
-    srv = Server()
-    srv.run()
+    try:
+        srv = Server()
+        srv.run()
+    except KeyboardInterrupt:
+        srv.clientsocket.close()
+        print(Colors.WARNING + "Shutting down ... " + Colors.ENDC)
+

@@ -12,9 +12,10 @@ import getopt
 import re
 import pickle
 import time
-from utils import OK
+from utils import OK, Verifier, aes_encode, aes_decode
 
 AES_KEY = b'TheForceIsStrong'  # 16bit AES key
+SAMPLE_TEXT = 'The path is clear though no eyes can see the course laid down long before'
 
 
 class Client:
@@ -42,6 +43,10 @@ class Client:
         data = self.clientsocket.recv(MAX_SIZE)  # receive server public key
         code, self.serverPublic = receive(pickle.loads(data))
         print("got " + Colors.OKGREEN + "server public key" + Colors.ENDC)
+        if code == OK:
+            return True
+        else:
+            return False
 
     def send_symmetric(self):
         """
@@ -63,6 +68,25 @@ class Client:
             if code == OK:
                 print("AES key received from the server.")
                 aes_ack = True
+
+    def send_message(self, path=''):
+        """
+        send the plaintext.
+        :var path: path of the file containing the message to send.
+        :return:
+        """
+        ack = False
+        while not ack:
+            nonce, ciphertext, tag = aes_encode(AES_KEY, SAMPLE_TEXT)
+            v = Verifier(nonce, ciphertext, tag)  # message to send to the server
+            to_send = form_request("GET", "msg", pickle.dumps(v))
+            print("sending " + Colors.OKGREEN + "message " + Colors.ENDC + "to server")
+            self.clientsocket.sendall(pickle.dumps(to_send))
+            data = self.clientsocket.recv(MAX_SIZE)
+            code, _ = receive(pickle.loads(data))
+            if code == OK:
+                print("The server received the message.")
+                ack = True
 
     def close_connection(self):
         """
@@ -132,9 +156,12 @@ def main(argv):
         print("client.py -p <file_path>")
         sys.exit(2)
     c = Client()
-    c.connection_setup()
+    set_up = False
+    while not set_up:
+        set_up = c.connection_setup()
     time.sleep(2)
     c.send_symmetric()
+    c.send_message()
 
 
 if __name__ == "__main__":
