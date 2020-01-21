@@ -19,6 +19,7 @@ class Server:
         self.aes = ""  # aes key
         self.clientsocket = None
         self.setup()
+        self.state = 0  # state of communication, relevant just for visual understanding.
 
     def setup(self):
         """
@@ -39,6 +40,9 @@ class Server:
         # queue up to 5 requests
         self.serversocket.listen(5)
         self.clientsocket, addr = self.serversocket.accept()
+        print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC +
+              "Got a connection from " + Colors.WARNING + "%s" % str(addr) + Colors.ENDC)
+        self.state += 1
         try:
             while True:
                 # establish a connection
@@ -49,20 +53,23 @@ class Server:
                 else:
                     msg = ""
                     code = ""
-                    print("Got a connection from " + Colors.WARNING + "%s" % str(addr) + Colors.ENDC)
                     method, destination, message = solve_message(pickle.loads(data))
                     if method == "GET" and destination == "/setup":
                         # 1. receive client's public key
                         # 2. send back server's public key
                         self.public_client = message
-                        print("got " + Colors.OKGREEN + "client public key" + Colors.ENDC)
+                        print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC +
+                              "got " + Colors.OKGREEN + "client public key" + Colors.ENDC)
+                        self.state += 1
                         msg = self.public
                         code = OK
                     elif method == "GET" and destination == "/aes":
                         # 1. receive the AES key encrypted with server's public key
                         # 2. decrypt it with server's private
                         self.aes = rsa.decrypt(message, self.private)
-                        print("got " + Colors.OKGREEN + "AES symmetric key" + Colors.ENDC)
+                        print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC +
+                              "got " + Colors.OKGREEN + "AES symmetric key" + Colors.ENDC)
+                        self.state += 1
                         msg = ""
                         code = OK
                     elif method == "GET" and destination == "/msg":
@@ -70,7 +77,10 @@ class Server:
                         # 2. Decrypt it and read the message
                         v = pickle.loads(message)
                         plaintext = aes_decode(v.nonce, v.ciphertext, v.tag, self.aes)
-                        print(plaintext)
+                        print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC +
+                              "Got the " + Colors.OKGREEN + "message" + Colors.ENDC + " from the client: "
+                              + Colors.BOLD + plaintext + Colors.ENDC)
+                        self.state += 1
                         code = OK
                     if code == OK:
                         to_send = response_format(msg, code)
@@ -133,6 +143,7 @@ def solve_message(msg):
     :param msg: message coming from client
     :return: method and content
     """
+    # todo: it only resolves GETs, implement other request type.
     try:
         header = msg["HEADER"]
         split_str = header.split(" ", 2)

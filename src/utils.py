@@ -71,7 +71,7 @@ def aes_decode(nonce, ciphertext, tag, key):
     plaintext = cipher.decrypt(ciphertext)
     try:
         cipher.verify(tag)
-        print("The message is authentic")
+        print(Colors.WARNING + "The message is authentic!" + Colors.ENDC)
     except ValueError:
         print("Key incorrect or message corrupted!")
         plaintext = ""

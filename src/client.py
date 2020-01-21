@@ -27,6 +27,7 @@ class Client:
         self.setup()
         self.serverPublic = ""  # server public key
         self.clientsocket.connect(self.server_address)
+        self.state = 0  # state of communication, relevant just for visual understanding.
 
     def connection_setup(self):
         """
@@ -38,11 +39,15 @@ class Client:
         # msg = self.clientsocket.recv(1024)
         # print(msg.decode('ascii'))
         to_send = form_request("GET", "setup", self.public)
-        print("sending " + Colors.OKGREEN + "public key " + Colors.ENDC + "to server")
+        print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC + "sending "
+              + Colors.OKGREEN + "public key " + Colors.ENDC + "to server")
+        self.state += 1
         self.clientsocket.sendall(pickle.dumps(to_send))
         data = self.clientsocket.recv(MAX_SIZE)  # receive server public key
         code, self.serverPublic = receive(pickle.loads(data))
-        print("got " + Colors.OKGREEN + "server public key" + Colors.ENDC)
+        print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC +
+              "got " + Colors.OKGREEN + "server public key" + Colors.ENDC)
+        self.state += 1
         if code == OK:
             return True
         else:
@@ -61,7 +66,9 @@ class Client:
             # encrypt the aes key with the server's public key
             crypto = rsa.encrypt(AES_KEY, self.serverPublic)
             to_send = form_request("GET", "aes", crypto)
-            print("sending " + Colors.OKGREEN + "aes key " + Colors.ENDC + "to server")
+            print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC +
+                  "sending " + Colors.OKGREEN + "aes key " + Colors.ENDC + "to server")
+            self.state += 1
             self.clientsocket.sendall(pickle.dumps(to_send))
             data = self.clientsocket.recv(MAX_SIZE)
             code, _ = receive(pickle.loads(data))
@@ -80,7 +87,9 @@ class Client:
             nonce, ciphertext, tag = aes_encode(AES_KEY, SAMPLE_TEXT)
             v = Verifier(nonce, ciphertext, tag)  # message to send to the server
             to_send = form_request("GET", "msg", pickle.dumps(v))
-            print("sending " + Colors.OKGREEN + "message " + Colors.ENDC + "to server")
+            print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC +
+                  "sending " + Colors.OKGREEN + "message " + Colors.ENDC + "to server")
+            self.state += 1
             self.clientsocket.sendall(pickle.dumps(to_send))
             data = self.clientsocket.recv(MAX_SIZE)
             code, _ = receive(pickle.loads(data))
@@ -161,6 +170,7 @@ def main(argv):
         set_up = c.connection_setup()
     time.sleep(2)
     c.send_symmetric()
+    time.sleep(2)
     c.send_message()
 
 
