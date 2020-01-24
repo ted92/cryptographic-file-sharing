@@ -12,7 +12,7 @@ import getopt
 import re
 import pickle
 import time
-from utils import OK, Verifier, aes_encode, aes_decode
+from utils import OK, Verifier, aes_encode, TIME
 
 AES_KEY = b'TheForceIsStrong'  # 16bit AES key
 SAMPLE_TEXT = 'The path is clear though no eyes can see the course laid down long before'
@@ -45,6 +45,7 @@ class Client:
         self.clientsocket.sendall(pickle.dumps(to_send))
         data = self.clientsocket.recv(MAX_SIZE)  # receive server public key
         code, self.serverPublic = receive(pickle.loads(data))
+        time.sleep(TIME)
         print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC +
               "got " + Colors.OKGREEN + "server public key" + Colors.ENDC)
         self.state += 1
@@ -72,6 +73,7 @@ class Client:
             self.clientsocket.sendall(pickle.dumps(to_send))
             data = self.clientsocket.recv(MAX_SIZE)
             code, _ = receive(pickle.loads(data))
+            time.sleep(TIME)
             if code == OK:
                 print("AES key received from the server.")
                 aes_ack = True
@@ -93,6 +95,7 @@ class Client:
             self.clientsocket.sendall(pickle.dumps(to_send))
             data = self.clientsocket.recv(MAX_SIZE)
             code, _ = receive(pickle.loads(data))
+            time.sleep(TIME)
             if code == OK:
                 print("The server received the message.")
                 ack = True
@@ -168,9 +171,9 @@ def main(argv):
     set_up = False
     while not set_up:
         set_up = c.connection_setup()
-    time.sleep(2)
+    time.sleep(TIME)
     c.send_symmetric()
-    time.sleep(2)
+    time.sleep(TIME)
     c.send_message()
 
 

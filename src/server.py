@@ -5,7 +5,7 @@ import socket
 import sys
 import rsa
 import pickle
-from utils import Colors, PORT, MAX_SIZE, OK, NO_CONTENT, NOTFOUND, HOST, Verifier, aes_encode, aes_decode
+from utils import Colors, PORT, MAX_SIZE, OK, NO_CONTENT, NOTFOUND, HOST, Verifier, aes_encode, aes_decode, TIME
 import datetime
 import time
 
@@ -51,6 +51,7 @@ class Server:
                     time.sleep(2)
                     pass
                 else:
+                    time.sleep(TIME)
                     msg = ""
                     code = ""
                     method, destination, message = solve_message(pickle.loads(data))
