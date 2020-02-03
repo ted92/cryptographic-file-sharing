@@ -1,21 +1,17 @@
 #!/usr/bin/python3
 
 __author__ = "Enrico Tedeschi"
-__copyright__ = "Copyright 2018, Arctic University of Norway"
+__copyright__ = "Copyright 2020, Arctic University of Norway"
 __email__ = "enrico.tedeschi@uit.no"
 
-from utils import Colors, MAX_SIZE, PORT
+from utils import Colors, MAX_SIZE, PORT, aes_decode
 import socket
 import sys
 import rsa
 import getopt
 import re
 import pickle
-import time
 from utils import OK, Verifier, aes_encode, TIME
-
-AES_KEY = b'TheForceIsStrong'  # 16bit AES key
-SAMPLE_TEXT = 'The path is clear though no eyes can see the course laid down long before'
 
 
 class Client:
@@ -25,6 +21,7 @@ class Client:
         self.public = ""
         self.private = ""
         self.setup()
+        self.aes = b''
         self.serverPublic = ""  # server public key
         self.clientsocket.connect(self.server_address)
         self.state = 0  # state of communication, relevant just for visual understanding.
@@ -45,7 +42,8 @@ class Client:
         self.clientsocket.sendall(pickle.dumps(to_send))
         data = self.clientsocket.recv(MAX_SIZE)  # receive server public key
         code, self.serverPublic = receive(pickle.loads(data))
-        time.sleep(TIME)
+        # time.sleep(TIME)
+        input()
         print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC +
               "got " + Colors.OKGREEN + "server public key" + Colors.ENDC)
         self.state += 1
@@ -54,7 +52,7 @@ class Client:
         else:
             return False
 
-    def send_symmetric(self):
+    def request_symmetric(self):
         """
         send symmetric key only if server public key is already saved
         :return:
@@ -65,20 +63,21 @@ class Client:
             self.connection_setup()
         while not aes_ack:
             # encrypt the aes key with the server's public key
-            crypto = rsa.encrypt(AES_KEY, self.serverPublic)
-            to_send = form_request("GET", "aes", crypto)
+            to_send = form_request("GET", "aes", 'AES key?')
             print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC +
-                  "sending " + Colors.OKGREEN + "aes key " + Colors.ENDC + "to server")
+                  "requesting " + Colors.OKGREEN + "AES key " + Colors.ENDC + "to server")
             self.state += 1
             self.clientsocket.sendall(pickle.dumps(to_send))
             data = self.clientsocket.recv(MAX_SIZE)
-            code, _ = receive(pickle.loads(data))
-            time.sleep(TIME)
+            code, msg = receive(pickle.loads(data))
+            # todo: decrypt with private key the aes key from the server
+            self.aes = rsa.decrypt(msg, self.private)
+            # time.sleep(TIME)
             if code == OK:
                 print("AES key received from the server.")
                 aes_ack = True
 
-    def send_message(self, path=''):
+    def request_message(self, path='message/'):
         """
         send the plaintext.
         :var path: path of the file containing the message to send.
@@ -86,18 +85,21 @@ class Client:
         """
         ack = False
         while not ack:
-            nonce, ciphertext, tag = aes_encode(AES_KEY, SAMPLE_TEXT)
+            nonce, ciphertext, tag = aes_encode(self.aes, path)
             v = Verifier(nonce, ciphertext, tag)  # message to send to the server
             to_send = form_request("GET", "msg", pickle.dumps(v))
             print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC +
-                  "sending " + Colors.OKGREEN + "message " + Colors.ENDC + "to server")
+                  "requesting " + Colors.OKGREEN + "message " + Colors.ENDC + "to server")
             self.state += 1
             self.clientsocket.sendall(pickle.dumps(to_send))
             data = self.clientsocket.recv(MAX_SIZE)
-            code, _ = receive(pickle.loads(data))
-            time.sleep(TIME)
+            code, msg = receive(pickle.loads(data))
+            v = pickle.loads(msg)
+            print(aes_decode(v.nonce, v.ciphertext, v.tag, self.aes))
+            # time.sleep(TIME)
+            input()
             if code == OK:
-                print("The server received the message.")
+                print("The message is recieved.")
                 ack = True
 
     def close_connection(self):
@@ -163,7 +165,7 @@ def receive(msg):
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv, "p:", ["path="])
+        _, _ = getopt.getopt(argv, "p:", ["path="])
     except getopt.GetoptError:
         print("client.py -p <file_path>")
         sys.exit(2)
@@ -171,10 +173,12 @@ def main(argv):
     set_up = False
     while not set_up:
         set_up = c.connection_setup()
-    time.sleep(TIME)
-    c.send_symmetric()
-    time.sleep(TIME)
-    c.send_message()
+    # time.sleep(TIME)
+    input()
+    c.request_symmetric()  # request symmetric instead
+    # time.sleep(TIME)
+    input()
+    c.request_message()  # receive message instead
 
 
 if __name__ == "__main__":

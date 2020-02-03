@@ -1,5 +1,8 @@
 #!/usr/bin/python3
-# Server using socket
+
+__author__ = "Enrico Tedeschi"
+__copyright__ = "Copyright 2020, Arctic University of Norway"
+__email__ = "enrico.tedeschi@uit.no"
 
 import socket
 import sys
@@ -9,6 +12,8 @@ from utils import Colors, PORT, MAX_SIZE, OK, NO_CONTENT, NOTFOUND, HOST, Verifi
 import datetime
 import time
 
+AES_KEY = b'TheForceIsStrong'  # 16bit AES key
+
 
 class Server:
     def __init__(self):
@@ -16,7 +21,7 @@ class Server:
         self.public = ""  # public key
         self.private = ""  # private key
         self.public_client = ""
-        self.aes = ""  # aes key
+        self.aes = AES_KEY  # aes key
         self.clientsocket = None
         self.setup()
         self.state = 0  # state of communication, relevant just for visual understanding.
@@ -65,23 +70,32 @@ class Server:
                         msg = self.public
                         code = OK
                     elif method == "GET" and destination == "/aes":
-                        # 1. receive the AES key encrypted with server's public key
+                        # 1. receive the request for AES key encrypted with server's public key
                         # 2. decrypt it with server's private
-                        self.aes = rsa.decrypt(message, self.private)
+                        # 3. send its AES key
                         print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC +
-                              "got " + Colors.OKGREEN + "AES symmetric key" + Colors.ENDC)
+                              "got request for " + Colors.OKGREEN + "AES symmetric key" + Colors.ENDC)
                         self.state += 1
-                        msg = ""
+                        msg = rsa.encrypt(self.aes, self.public_client)
                         code = OK
                     elif method == "GET" and destination == "/msg":
                         # 1. Receive the message
                         # 2. Decrypt it and read the message
                         v = pickle.loads(message)
-                        plaintext = aes_decode(v.nonce, v.ciphertext, v.tag, self.aes)
+                        path = aes_decode(v.nonce, v.ciphertext, v.tag, self.aes)
                         print(Colors.FAIL + "( " + str(self.state) + " ) " + Colors.ENDC +
-                              "Got the " + Colors.OKGREEN + "message" + Colors.ENDC + " from the client: "
-                              + Colors.BOLD + plaintext + Colors.ENDC)
+                              "Got " + Colors.OKGREEN + "message request" + Colors.ENDC + " from the client in the"
+                                                                                          "following path: "
+                              + Colors.BOLD + path + Colors.ENDC)
                         self.state += 1
+                        with open(path + 'nonce.txt', 'rb') as nonce_file:
+                            nonce = nonce_file.read()
+                        with open(path + 'ciphertext.txt', 'rb') as ciph_file:
+                            ciphertext = ciph_file.read()
+                        with open(path + 'tag.txt', 'rb') as tag_file:
+                            tag = tag_file.read()
+                        verifier = Verifier(nonce, ciphertext, tag)
+                        msg = pickle.dumps(verifier)
                         code = OK
                     if code == OK:
                         to_send = response_format(msg, code)
@@ -115,7 +129,7 @@ def solve_message(msg):
     Host:localhost
 
     POST /messages HTTP/1.1
-    From: enrico tedeschi
+    From: enrico Tedeschi
     User-Agent: HTTPTool/1.1
     Content-Type: application/x-www-form-urlencoded
     Content-Length: 32
@@ -144,7 +158,6 @@ def solve_message(msg):
     :param msg: message coming from client
     :return: method and content
     """
-    # todo: it only resolves GETs, implement other request type.
     try:
         header = msg["HEADER"]
         split_str = header.split(" ", 2)

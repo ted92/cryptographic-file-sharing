@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-Shared classes and methods
+Shared classes and functions
 """
 __author__ = "Enrico Tedeschi"
 __copyright__ = "Copyright 2018, Arctic University of Norway"
