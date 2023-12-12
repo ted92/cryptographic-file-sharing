@@ -97,7 +97,6 @@ class Client:
             v = pickle.loads(msg)
             print(aes_decode(v.nonce, v.ciphertext, v.tag, self.aes))
             # time.sleep(TIME)
-            input()
             if code == OK:
                 print("The message is recieved.")
                 ack = True

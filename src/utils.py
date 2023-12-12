@@ -18,7 +18,7 @@ CREATED = "201 Created"
 ACCEPTED = "202 Accepted"
 NO_CONTENT = "204 No Content"
 NOTFOUND = "404 NOT FOUND"
-TIME = 4
+TIME = 2
 
 MESSAGE_FILE = "messages.json"
 MAX_SIZE = 10000
